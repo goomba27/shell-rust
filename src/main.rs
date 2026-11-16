@@ -11,11 +11,13 @@ fn main() {
             .read_line(&mut input)
             .expect("Failed to take input");
 
-        match input.as_str().trim() {
+        let line = input.trim();
+        let (cmd, args) = line.split_once(' ').unwrap_or((line, ""));
+
+        match cmd {
             "exit" => break,
-            _ => {
-                println!("{}: command not found", input.trim());
-            }
+            "echo" => println!("{}", args),
+            _ => println!("{}: command not found", cmd),
         }
     }
 }

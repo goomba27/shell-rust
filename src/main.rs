@@ -4,4 +4,11 @@ use std::io::{self, Write};
 fn main() {
     print!("$ ");
     io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to take input");
+
+    println!("{}: command not found", input.trim());
 }

@@ -64,15 +64,4 @@ fn handle_type(args: &str) {
             Err(_) => println!("{args}: not found"),
         },
     }
-
-    //let cmd = CommandType::from_name(args);
-
-    //     if cmd.is_some() && cmd.unwrap() == CommandType::Builtin {
-    //         return println!("{} is a shell builtin", args);
-    //     }
-    //
-    //     match which::which(args) {
-    //         Ok(path) => println!("{args} is {}", path.display()),
-    //         Err(_) => println!("{args}: not found"),
-    //     }
 }

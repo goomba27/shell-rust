@@ -11,7 +11,8 @@ fn main() {
             .read_line(&mut input)
             .expect("Failed to take input");
 
-        match input {
+        match input.as_str().trim() {
+            "exit" => break,
             _ => {
                 println!("{}: command not found", input.trim());
             }

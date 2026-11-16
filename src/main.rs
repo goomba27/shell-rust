@@ -1,35 +1,35 @@
-#[allow(unused_imports)]
 use std::io::{self, Write};
 
-// enum Type {
-//     Executable,
-//     Builtin,
-//     Unrecognized,
-// }
-
-enum Builtin {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Command {
     Echo,
     Exit,
     Type,
 }
-impl Builtin {
-    fn is_builtin(cmd: &str) -> String {
-        if Builtin::try_from(cmd).is_ok() {
-            return format!("{} is a shell builtin", cmd);
-        };
+impl Command {
+    fn from_name(value: &str) -> Option<Self> {
+        match value {
+            "echo" => Some(Command::Echo),
+            "exit" => Some(Command::Exit),
+            "type" => Some(Command::Type),
+            _ => None,
+        }
+    }
 
-        return format!("{}: not found", cmd);
+    fn kind(&self) -> CommandType {
+        match self {
+            Command::Echo | Command::Exit | Command::Type => CommandType::Builtin,
+        }
     }
 }
-impl TryFrom<&str> for Builtin {
-    type Error = ();
-    fn try_from(cmd: &str) -> Result<Self, Self::Error> {
-        match cmd {
-            "echo" => Ok(Builtin::Echo),
-            "exit" => Ok(Builtin::Exit),
-            "type" => Ok(Builtin::Type),
-            _ => Err(()),
-        }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CommandType {
+    Builtin,
+}
+impl CommandType {
+    fn from_name(cmd: &str) -> Option<Self> {
+        Command::from_name(cmd).map(|c| c.kind())
     }
 }
 
@@ -45,15 +45,34 @@ fn main() {
 
         let line = input.trim();
         let (cmd, args) = line.split_once(' ').unwrap_or((line, ""));
+        let args = args.trim();
 
-        match cmd {
-            "type" => {
-                let res = Builtin::is_builtin(args.trim());
-                println!("{res}");
-            }
-            "exit" => break,
-            "echo" => println!("{}", args),
-            _ => println!("{}: command not found", cmd),
+        match Command::from_name(cmd) {
+            Some(Command::Exit) => break,
+            Some(Command::Echo) => println!("{}", args),
+            Some(Command::Type) => handle_type(args),
+            None => println!("{}: command not found", cmd),
         }
     }
+}
+
+fn handle_type(args: &str) {
+    match CommandType::from_name(args) {
+        Some(CommandType::Builtin) => println!("{} is a shell builtin", args),
+        None => match which::which(args) {
+            Ok(path) => println!("{args} is {}", path.display()),
+            Err(_) => println!("{args}: not found"),
+        },
+    }
+
+    //let cmd = CommandType::from_name(args);
+
+    //     if cmd.is_some() && cmd.unwrap() == CommandType::Builtin {
+    //         return println!("{} is a shell builtin", args);
+    //     }
+    //
+    //     match which::which(args) {
+    //         Ok(path) => println!("{args} is {}", path.display()),
+    //         Err(_) => println!("{args}: not found"),
+    //     }
 }

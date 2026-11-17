@@ -1,24 +1,25 @@
 use std::io::{self, Write};
+use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Command {
+enum Commands {
     Echo,
     Exit,
     Type,
 }
-impl Command {
+impl Commands {
     fn from_name(value: &str) -> Option<Self> {
         match value {
-            "echo" => Some(Command::Echo),
-            "exit" => Some(Command::Exit),
-            "type" => Some(Command::Type),
+            "echo" => Some(Commands::Echo),
+            "exit" => Some(Commands::Exit),
+            "type" => Some(Commands::Type),
             _ => None,
         }
     }
 
     fn kind(&self) -> CommandType {
         match self {
-            Command::Echo | Command::Exit | Command::Type => CommandType::Builtin,
+            Commands::Echo | Commands::Exit | Commands::Type => CommandType::Builtin,
         }
     }
 }
@@ -29,11 +30,11 @@ enum CommandType {
 }
 impl CommandType {
     fn from_name(cmd: &str) -> Option<Self> {
-        Command::from_name(cmd).map(|c| c.kind())
+        Commands::from_name(cmd).map(|c| c.kind())
     }
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
@@ -44,24 +45,40 @@ fn main() {
             .expect("Failed to take input");
 
         let line = input.trim();
+        if line.is_empty() {
+            continue;
+        }
+
         let (cmd, args) = line.split_once(' ').unwrap_or((line, ""));
         let args = args.trim();
 
-        match Command::from_name(cmd) {
-            Some(Command::Exit) => break,
-            Some(Command::Echo) => println!("{}", args),
-            Some(Command::Type) => handle_type(args),
-            None => println!("{}: command not found", cmd),
+        match Commands::from_name(cmd) {
+            Some(Commands::Exit) => break,
+            Some(Commands::Echo) => println!("{}", args),
+            Some(Commands::Type) => handle_type(args),
+            None => match which::which(cmd) {
+                Ok(_) => {
+                    if let Err(e) = Command::new(cmd).args(args.split_whitespace()).status() {
+                        eprintln!("{cmd}: {e}");
+                    }
+                }
+                Err(_) => println!("{cmd}: command not found"),
+            },
         }
     }
+    Ok(())
 }
 
 fn handle_type(args: &str) {
     match CommandType::from_name(args) {
         Some(CommandType::Builtin) => println!("{} is a shell builtin", args),
-        None => match which::which(args) {
-            Ok(path) => println!("{args} is {}", path.display()),
-            Err(_) => println!("{args}: not found"),
-        },
+        None => check_executable(args),
+    }
+}
+
+fn check_executable(args: &str) {
+    match which::which(args) {
+        Ok(path) => println!("{args} is {}", path.display()),
+        Err(_) => println!("{args}: not found"),
     }
 }

@@ -1,5 +1,6 @@
 use std::env;
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,6 +9,7 @@ enum Commands {
     Exit,
     Type,
     Pwd,
+    Cd,
 }
 impl Commands {
     fn from_name(value: &str) -> Option<Self> {
@@ -16,13 +18,14 @@ impl Commands {
             "exit" => Some(Commands::Exit),
             "type" => Some(Commands::Type),
             "pwd" => Some(Commands::Pwd),
+            "cd" => Some(Commands::Cd),
             _ => None,
         }
     }
 
     fn kind(&self) -> CommandType {
         match self {
-            Commands::Echo | Commands::Exit | Commands::Type | Commands::Pwd => {
+            Commands::Echo | Commands::Exit | Commands::Type | Commands::Pwd | Commands::Cd => {
                 CommandType::Builtin
             }
         }
@@ -75,6 +78,18 @@ fn main() -> anyhow::Result<()> {
             Some(Commands::Pwd) => {
                 let path = env::current_dir()?;
                 println!("{}", path.display());
+            }
+            Some(Commands::Cd) => {
+                let new_path = Path::new(args);
+                let change = env::set_current_dir(&new_path);
+                if change.is_err() {
+                    println!("cd: {args}: No such file or directory");
+                }
+                // if change.is_ok() {
+                //     println!("{}", new_path.display());
+                // } else {
+                //     println!("cd: {args}: No such file or directory");
+                // }
             }
             None => match which::which(cmd) {
                 Ok(_) => {

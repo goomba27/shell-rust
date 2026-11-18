@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{self, Write};
 use std::process::Command;
 
@@ -6,6 +7,7 @@ enum Commands {
     Echo,
     Exit,
     Type,
+    Pwd,
 }
 impl Commands {
     fn from_name(value: &str) -> Option<Self> {
@@ -13,13 +15,16 @@ impl Commands {
             "echo" => Some(Commands::Echo),
             "exit" => Some(Commands::Exit),
             "type" => Some(Commands::Type),
+            "pwd" => Some(Commands::Pwd),
             _ => None,
         }
     }
 
     fn kind(&self) -> CommandType {
         match self {
-            Commands::Echo | Commands::Exit | Commands::Type => CommandType::Builtin,
+            Commands::Echo | Commands::Exit | Commands::Type | Commands::Pwd => {
+                CommandType::Builtin
+            }
         }
     }
 }
@@ -34,28 +39,43 @@ impl CommandType {
     }
 }
 
+fn handle_type(args: &str) {
+    match CommandType::from_name(args) {
+        Some(CommandType::Builtin) => println!("{} is a shell builtin", args),
+        None => check_executable(args),
+    }
+}
+
+fn check_executable(args: &str) {
+    match which::which(args) {
+        Ok(path) => println!("{args} is {}", path.display()),
+        Err(_) => println!("{args}: not found"),
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
 
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to take input");
-
-        let line = input.trim();
+        let line = read_line();
         if line.is_empty() {
             continue;
         }
 
-        let (cmd, args) = line.split_once(' ').unwrap_or((line, ""));
+        //TODO: move to split_line
+        let (cmd, args) = line.split_once(' ').unwrap_or((&line, ""));
         let args = args.trim();
 
+        //TODO: move to execute
         match Commands::from_name(cmd) {
             Some(Commands::Exit) => break,
             Some(Commands::Echo) => println!("{}", args),
             Some(Commands::Type) => handle_type(args),
+            Some(Commands::Pwd) => {
+                let path = env::current_dir()?;
+                println!("{}", path.display());
+            }
             None => match which::which(cmd) {
                 Ok(_) => {
                     if let Err(e) = Command::new(cmd).args(args.split_whitespace()).status() {
@@ -69,16 +89,19 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_type(args: &str) {
-    match CommandType::from_name(args) {
-        Some(CommandType::Builtin) => println!("{} is a shell builtin", args),
-        None => check_executable(args),
-    }
+fn read_line() -> String {
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to take input");
+
+    input.trim().to_string()
 }
 
-fn check_executable(args: &str) {
-    match which::which(args) {
-        Ok(path) => println!("{args} is {}", path.display()),
-        Err(_) => println!("{args}: not found"),
-    }
+fn split_line(line: String) -> Vec<String> {
+    todo!()
+}
+
+fn execute() {
+    todo!()
 }

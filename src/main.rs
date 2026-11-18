@@ -1,6 +1,6 @@
 use std::env;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,33 +75,49 @@ fn main() -> anyhow::Result<()> {
             Some(Commands::Exit) => break,
             Some(Commands::Echo) => println!("{}", args),
             Some(Commands::Type) => handle_type(args),
-            Some(Commands::Pwd) => {
-                let path = env::current_dir()?;
-                println!("{}", path.display());
-            }
-            Some(Commands::Cd) => {
-                let new_path = Path::new(args);
-                let change = env::set_current_dir(&new_path);
-                if change.is_err() {
-                    println!("cd: {args}: No such file or directory");
-                }
-                // if change.is_ok() {
-                //     println!("{}", new_path.display());
-                // } else {
-                //     println!("cd: {args}: No such file or directory");
-                // }
-            }
-            None => match which::which(cmd) {
-                Ok(_) => {
-                    if let Err(e) = Command::new(cmd).args(args.split_whitespace()).status() {
-                        eprintln!("{cmd}: {e}");
-                    }
-                }
-                Err(_) => println!("{cmd}: command not found"),
-            },
+            Some(Commands::Pwd) => pwd(),
+            Some(Commands::Cd) => change_directory(args),
+            None => executables(cmd, args),
         }
     }
     Ok(())
+}
+
+fn pwd() {
+    let path = env::current_dir().unwrap();
+    println!("{}", path.display());
+}
+
+fn change_directory(args: &str) {
+    let new_path = match args.strip_prefix('~') {
+        Some(rest) => {
+            let home = env::var("HOME").unwrap_or_default();
+            PathBuf::from(home).join(rest.trim_start_matches('/'))
+        }
+        None => PathBuf::from(args),
+    };
+
+    let change = env::set_current_dir(&new_path);
+
+    // if change.is_ok() {
+    //     println!("{}", new_path.display());
+    // } else {
+    //     println!("cd: {args}: No such file or directory");
+    // }
+    if change.is_err() {
+        println!("cd: {args}: No such file or directory");
+    }
+}
+
+fn executables(cmd: &str, args: &str) {
+    match which::which(cmd) {
+        Ok(_) => {
+            if let Err(e) = Command::new(cmd).args(args.split_whitespace()).status() {
+                eprintln!("{cmd}: {e}");
+            }
+        }
+        Err(_) => println!("{cmd}: command not found"),
+    }
 }
 
 fn read_line() -> String {
